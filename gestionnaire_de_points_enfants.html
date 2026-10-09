@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi des Points & Fiches à Imprimer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        indigo: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 11pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            th, td {
+                border: 1px solid #cbd5e1 !important;
+                padding: 6px 10px !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .signature-box {
+                margin-top: 40px;
+                display: flex !important;
+                justify-content: space-between;
+                page-break-inside: avoid;
+            }
+        }
+        
+        .print-only {
+            display: none;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 antialiased">
+
+    <!-- En-tête / Barre de navigation -->
+    <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-brand-500 to-indigo-500 p-2.5 rounded-xl text-white shadow-md">
+                    <i data-lucide="award" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-xl text-slate-900 leading-tight">P'tits Champions</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Gestion & Impression de fiches de points</p>
+                </div>
+            </div>
+
+            <!-- Boutons d'action globale (Import / Export / Print) -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="toggleHistoryDrawer(true)" title="Consulter l'historique" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition relative">
+                    <i data-lucide="history" class="w-4 h-4 sm:mr-1.5"></i>
+                    <span class="hidden sm:inline">Historique</span>
+                    <span id="historyBadge" class="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-600 text-white">0</span>
+                </button>
+
+                <button onclick="archiveCurrentSheet()" title="Enregistrer la feuille courante dans l'historique" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-emerald-800 bg-emerald-100 hover:bg-emerald-200 transition">
+                    <i data-lucide="bookmark-plus" class="w-4 h-4 sm:mr-1.5"></i>
+                    <span class="hidden sm:inline">Archiver la feuille</span>
+                </button>
+
+                <button onclick="exportJSON()" title="Sauvegarder un fichier JSON" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition">
+                    <i data-lucide="download" class="w-4 h-4 sm:mr-1.5"></i>
+                    <span class="hidden sm:inline">Sauvegarder</span>
+                </button>
+                
+                <label class="inline-flex items-center px-3 py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer transition">
+                    <i data-lucide="upload" class="w-4 h-4 sm:mr-1.5"></i>
+                    <span class="hidden sm:inline">Restaurer</span>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importJSON(event)">
+                </label>
+
+                <button onclick="window.print()" class="inline-flex items-center px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition">
+                    <i data-lucide="printer" class="w-4 h-4 sm:mr-1.5"></i>
+                    <span class="hidden sm:inline">Imprimer PDF</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col space-y-6">
+        
+        <!-- Navigation Onglets Modes -->
+        <div class="no-print bg-slate-200/80 p-1 rounded-xl flex space-x-1 max-w-md mx-auto sm:mx-0">
+            <button id="tabMode1Btn" onclick="switchMode('mode1')" class="flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition bg-white text-indigo-600 shadow-sm">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                <span>Pointage Ponctuel</span>
+            </button>
+            <button id="tabMode2Btn" onclick="switchMode('mode2')" class="flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <span>Suivi Long Terme</span>
+            </button>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="no-print fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2">
+            <i data-lucide="check-circle" class="w-5 h-5 text-brand-400"></i>
+            <span id="toastMsg" class="text-sm font-medium">Opération réussie</span>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- MODE 1 : POINTEUR PONCTUEL / FEUILLE DU JOUR -->
+        <!-- ========================================== -->
+        <div id="mode1Container" class="space-y-6">
+            
+            <!-- Controls & Form Panel -->
+            <div class="no-print bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i>
+                            Ajouter un émargement de points
+                        </h2>
+                        <p class="text-xs text-slate-500">Pour une activité spécifique, une sortie ou une journée.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button type="button" onclick="archiveCurrentSheet()" class="sm:hidden inline-flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-100 text-emerald-800">
+                            <i data-lucide="bookmark-plus" class="w-3.5 h-3.5 mr-1"></i>
+                            Archiver
+                        </button>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Titre du document</label>
+                            <input type="text" id="m1Title" value="Fiche d'attribution des points" oninput="updateM1Header()" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none w-full sm:w-64">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Date</label>
+                            <input type="date" id="m1Date" onchange="updateM1Header()" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulaire ajout enfant ponctuel -->
+                <form id="m1AddForm" onsubmit="addM1Entry(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Nom</label>
+                        <input type="text" id="m1Nom" placeholder="Dupont" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Prénom</label>
+                        <input type="text" id="m1Prenom" placeholder="Lucas" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Points gagnés</label>
+                        <input type="number" id="m1Points" value="5" min="0" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Motif / Activité</label>
+                        <input type="text" id="m1Motif" placeholder="Rangement & Participation" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 px-4 rounded-lg text-sm shadow-sm transition flex items-center justify-center space-x-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Ajouter</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Preview / Printable Sheet Mode 1 -->
+            <div class="print-container bg-white p-6 sm:p-10 rounded-2xl shadow-sm border border-slate-200">
+                
+                <!-- Document Header -->
+                <div class="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
+                    <div>
+                        <h2 id="m1DisplayTitle" class="font-display font-bold text-2xl text-slate-900">Fiche d'attribution des points</h2>
+                        <p class="text-sm text-slate-600 mt-1">Registre d'émargement et d'attribution quotidienne</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block px-3 py-1 bg-slate-100 rounded-lg text-sm font-semibold text-slate-700" id="m1DisplayDate">--/--/----</span>
+                        <div class="text-xs text-slate-500 mt-1" id="m1CountText">0 enfant(s) inscrit(s)</div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 uppercase text-xs tracking-wider border-b border-slate-300">
+                                <th class="py-3 px-4 font-bold">N°</th>
+                                <th class="py-3 px-4 font-bold">Nom</th>
+                                <th class="py-3 px-4 font-bold">Prénom</th>
+                                <th class="py-3 px-4 font-bold text-center">Points Gagnés</th>
+                                <th class="py-3 px-4 font-bold">Motif / Remarque</th>
+                                <th class="py-3 px-4 font-bold text-center print-only">Émargement / Visa</th>
+                                <th class="py-3 px-4 font-bold text-right no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="m1TableBody" class="divide-y divide-slate-200">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="m1EmptyState" class="text-center py-12 text-slate-400 no-print">
+                    <i data-lucide="clipboard-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p class="font-medium">Aucun enfant ajouté sur cette feuille.</p>
+                    <p class="text-xs text-slate-400 mt-1">Remplissez le formulaire ci-dessus pour ajouter des lignes.</p>
+                </div>
+
+                <!-- Signatures Section (Visibles à l'impression / PDF) -->
+                <div class="mt-12 pt-6 border-t border-slate-300 grid grid-cols-2 gap-8 page-break-inside-avoid">
+                    <div class="border border-slate-300 rounded-lg p-4 h-28 flex flex-col justify-between">
+                        <span class="text-xs font-bold text-slate-600 uppercase">Signature de l'encadrant / Responsable :</span>
+                        <span class="text-xs text-slate-400 italic">Date et signature manuelle</span>
+                    </div>
+                    <div class="border border-slate-300 rounded-lg p-4 h-28 flex flex-col justify-between">
+                        <span class="text-xs font-bold text-slate-600 uppercase">Observations & Cachet :</span>
+                        <span class="text-xs text-slate-400 italic">Mention obligatoire</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center text-xs text-slate-400 print-only">
+                    Document généré le <span class="printDateNow"></span> - P'tits Champions - Feuille de certification d'attribution
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- MODE 2 : SUIVI À LONG TERME (2 SEMAINES / MONTH) -->
+        <!-- ========================================== -->
+        <div id="mode2Container" class="space-y-6 hidden">
+            
+            <!-- Controls & Add Sessions -->
+            <div class="no-print bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="calendar-range" class="w-5 h-5 text-indigo-600"></i>
+                            Suivi cumulatif long terme
+                        </h2>
+                        <p class="text-xs text-slate-500">Gérez le cumul des points sur plusieurs semaines ou événements.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="addM2Column()" class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">
+                            <i data-lucide="plus-circle" class="w-4 h-4 mr-1"></i>
+                            Ajouter une période/colonne
+                        </button>
+                        <button onclick="openAddChildModal()" class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition">
+                            <i data-lucide="user-plus" class="w-4 h-4 mr-1"></i>
+                            Ajouter un enfant
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modificateur Titre long terme -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nom du registre</label>
+                        <input type="text" id="m2Title" value="Bilan des Points - Trimestre / Mois" oninput="updateM2Header()" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Période générale</label>
+                        <input type="text" id="m2Period" value="Octobre - Novembre" oninput="updateM2Header()" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Long Terme (Printable & Editable) -->
+            <div class="print-container bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
+                
+                <div class="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-6">
+                    <div>
+                        <h2 id="m2DisplayTitle" class="font-display font-bold text-2xl text-slate-900">Bilan des Points - Long Terme</h2>
+                        <p id="m2DisplayPeriod" class="text-sm font-medium text-indigo-600 mt-1">Période : Octobre - Novembre</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block px-3 py-1 bg-brand-50 text-brand-700 rounded-lg text-xs font-bold uppercase tracking-wider border border-brand-200">Tableau Récapitulatif</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm border-collapse" id="m2Table">
+                        <thead>
+                            <tr id="m2HeaderRow" class="bg-slate-100 text-slate-700 uppercase text-xs tracking-wider border-b border-slate-300">
+                                <!-- Dynamic Headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="m2TableBody" class="divide-y divide-slate-200">
+                            <!-- Dynamic Content -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State Mode 2 -->
+                <div id="m2EmptyState" class="text-center py-12 text-slate-400 no-print hidden">
+                    <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p class="font-medium">Aucun enfant dans le registre long terme.</p>
+                    <p class="text-xs text-slate-400 mt-1">Cliquez sur "Ajouter un enfant" ci-dessus pour commencer.</p>
+                </div>
+
+                <!-- Signature long terme -->
+                <div class="mt-12 pt-6 border-t border-slate-300 flex justify-between items-end page-break-inside-avoid">
+                    <div class="text-xs text-slate-500">
+                        <p class="font-semibold text-slate-700">Légende / Barème :</p>
+                        <p>Les points cumulés donnent droit aux récompenses définies par le règlement interior.</p>
+                    </div>
+                    <div class="border border-slate-300 rounded-lg p-3 w-64 text-center">
+                        <span class="text-xs font-bold text-slate-600 uppercase block mb-8">Signature de validation :</span>
+                        <span class="text-xs text-slate-400 italic">Signature & Date</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal d'ajout d'enfant pour le Mode 2 -->
+    <div id="addChildModal" class="no-print fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <!-- ... existing modal code ... -->
+    </div>
+
+    <!-- Tiroir Historique (Side Drawer) -->
+    <div id="historyOverlay" onclick="toggleHistoryDrawer(false)" class="no-print fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity duration-300"></div>
+    
+    <aside id="historyDrawer" class="no-print fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-50 shadow-2xl border-l border-slate-200 flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out">
+        <!-- Drawer Header -->
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center space-x-2">
+                <div class="bg-indigo-100 text-indigo-700 p-2 rounded-lg">
+                    <i data-lucide="archive" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">Historique des Feuilles</h3>
+                    <p class="text-xs text-slate-500" id="historySubtitle">0 feuille(s) sauvegardée(s)</p>
+                </div>
+            </div>
+            <button onclick="toggleHistoryDrawer(false)" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Action bar -->
+        <div class="p-3 bg-slate-100/70 border-b border-slate-200 flex justify-between items-center text-xs">
+            <button onclick="archiveCurrentSheet()" class="inline-flex items-center text-emerald-700 font-semibold hover:underline">
+                <i data-lucide="bookmark-plus" class="w-3.5 h-3.5 mr-1"></i>
+                Archiver feuille actuelle
+            </button>
+            <button onclick="clearHistory()" class="text-slate-500 hover:text-red-600 font-medium">
+                Vider l'historique
+            </button>
+        </div>
+
+        <!-- History Items List -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="historyList">
+            <!-- Injected dynamically -->
+        </div>
+    </aside>
+
+    <script>
+        // State Application
+        let state = {
+            currentMode: 'mode1',
+            mode1: {
+                title: "Fiche d'attribution des points",
+                date: new Date().toISOString().split('T')[0],
+                entries: [
+                    { id: '1', nom: 'Martin', prenom: 'Lucas', points: 5, motif: 'Aide au rangement' },
+                    { id: '2', nom: 'Bernard', prenom: 'Chloé', points: 10, motif: 'Excellente participation' },
+                    { id: '3', nom: 'Petit', prenom: 'Thomas', points: 3, motif: 'Respect des règles' }
+                ]
+            },
+            mode2: {
+                title: "Bilan des Points - Long Terme",
+                period: "Octobre - Novembre",
+                columns: [
+                    { id: 'col1', label: 'Semaine 1' },
+                    { id: 'col2', label: 'Semaine 2' },
+                    { id: 'col3', label: 'Semaine 3' }
+                ],
+                children: [
+                    { id: 'c1', nom: 'Martin', prenom: 'Lucas', points: { col1: 10, col2: 15, col3: 5 }, obj: 'Autonomie' },
+                    { id: 'c2', nom: 'Bernard', prenom: 'Chloé', points: { col1: 20, col2: 10, col3: 15 }, obj: 'Camaraderie' }
+                ]
+            },
+            history: [] // Tableau des feuilles archivées
+        };
+
+        // Initialize App
+        window.onload = function() {
+            loadFromLocalStorage();
+            document.getElementById('m1Date').value = state.mode1.date;
+            document.querySelectorAll('.printDateNow').forEach(el => el.textContent = new Date().toLocaleDateString('fr-FR'));
+            renderAll();
+            lucide.createIcons();
+        };
+
+        function toggleHistoryDrawer(open) {
+            const drawer = document.getElementById('historyDrawer');
+            const overlay = document.getElementById('historyOverlay');
+            if (open) {
+                overlay.classList.remove('hidden');
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                    drawer.classList.remove('translate-x-full');
+                }, 10);
+            } else {
+                drawer.classList.add('translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        function archiveCurrentSheet() {
+            const isMode1 = state.currentMode === 'mode1';
+            const childCount = isMode1 ? state.mode1.entries.length : state.mode2.children.length;
+
+            if (childCount === 0) {
+                alert("Impossible d'archiver une feuille vide ! Ajoutez des enfants avant d'enregistrer.");
+                return;
+            }
+
+            const archiveItem = {
+                id: 'arch_' + Date.now(),
+                timestamp: new Date().toISOString(),
+                formattedDate: new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }),
+                mode: state.currentMode,
+                title: isMode1 ? (state.mode1.title || 'Fiche de points') : (state.mode2.title || 'Suivi Long Terme'),
+                subtitle: isMode1 ? `Date: ${state.mode1.date}` : `Période: ${state.mode2.period}`,
+                childCount: childCount,
+                data: JSON.parse(JSON.stringify(isMode1 ? state.mode1 : state.mode2))
+            };
+
+            if (!state.history) state.history = [];
+            state.history.unshift(archiveItem); // Ajouter au début
+            saveToLocalStorage();
+            renderHistory();
+            showToast('Feuille archivée dans l\'historique !');
+        }
+
+        function loadArchivedSheet(archiveId) {
+            const item = state.history.find(h => h.id === archiveId);
+            if (!item) return;
+
+            if (confirm(`Voulez-vous charger la feuille "${item.title}" ? Vos modifications actuelles seront remplacées.`)) {
+                if (item.mode === 'mode1') {
+                    state.mode1 = JSON.parse(JSON.stringify(item.data));
+                    document.getElementById('m1Title').value = state.mode1.title;
+                    document.getElementById('m1Date').value = state.mode1.date;
+                    switchMode('mode1');
+                    renderM1();
+                } else {
+                    state.mode2 = JSON.parse(JSON.stringify(item.data));
+                    document.getElementById('m2Title').value = state.mode2.title;
+                    document.getElementById('m2Period').value = state.mode2.period;
+                    switchMode('mode2');
+                    renderM2();
+                }
+                saveToLocalStorage();
+                toggleHistoryDrawer(false);
+                showToast('Feuille chargée avec succès !');
+            }
+        }
+
+        function printArchivedSheet(archiveId) {
+            loadArchivedSheet(archiveId);
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+
+        function deleteArchiveItem(archiveId) {
+            if (confirm("Voulez-vous supprimer cette feuille de l'historique ?")) {
+                state.history = state.history.filter(h => h.id !== archiveId);
+                saveToLocalStorage();
+                renderHistory();
+                showToast('Archive supprimée.');
+            }
+        }
+
+        function clearHistory() {
+            if (!state.history || state.history.length === 0) return;
+            if (confirm("Êtes-vous sûr de vouloir vider tout l'historique des feuilles ?")) {
+                state.history = [];
+                saveToLocalStorage();
+                renderHistory();
+                showToast('Historique vidé.');
+            }
+        }
+
+        function renderHistory() {
+            const listContainer = document.getElementById('historyList');
+            const history = state.history || [];
+            
+            document.getElementById('historyBadge').textContent = history.length;
+            document.getElementById('historySubtitle').textContent = `${history.length} feuille(s) sauvegardée(s)`;
+
+            if (history.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i data-lucide="archive-x" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                        <p class="text-sm font-medium">Aucune feuille archivée</p>
+                        <p class="text-xs text-slate-400 mt-1">Cliquez sur "Archiver la feuille" pour en sauvegarder une.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            listContainer.innerHTML = history.map(item => `
+                <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs hover:border-indigo-300 transition flex flex-col space-y-2">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${item.mode === 'mode1' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'} mb-1">
+                                ${item.mode === 'mode1' ? 'Ponctuel' : 'Long Terme'}
+                            </span>
+                            <h4 class="font-bold text-slate-800 text-sm leading-snug">${escapeHtml(item.title)}</h4>
+                            <p class="text-xs text-slate-500">${escapeHtml(item.subtitle)} • ${item.childCount} enfant(s)</p>
+                        </div>
+                        <span class="text-[10px] text-slate-400 whitespace-nowrap">${item.formattedDate}</span>
+                    </div>
+
+                    <div class="flex items-center justify-end space-x-1 pt-2 border-t border-slate-100">
+                        <button onclick="loadArchivedSheet('${item.id}')" title="Charger la feuille" class="px-2.5 py-1 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition flex items-center">
+                            <i data-lucide="folder-open" class="w-3.5 h-3.5 mr-1"></i>
+                            Charger
+                        </button>
+                        <button onclick="printArchivedSheet('${item.id}')" title="Imprimer directement" class="px-2.5 py-1 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition flex items-center">
+                            <i data-lucide="printer" class="w-3.5 h-3.5 mr-1"></i>
+                            Imprimer
+                        </button>
+                        <button onclick="deleteArchiveItem('${item.id}')" title="Supprimer" class="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        // Toast Notification
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+
+        // Save & Load LocalStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('ptits_champions_data', JSON.stringify(state));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('ptits_champions_data');
+            if (saved) {
+                try {
+                    state = JSON.parse(saved);
+                    if (!state.history) state.history = [];
+                } catch(e) {
+                    console.error('Error loading state', e);
+                }
+            }
+        }
+
+        // Switch Modes
+        function switchMode(mode) {
+            state.currentMode = mode;
+            const m1Btn = document.getElementById('tabMode1Btn');
+            const m2Btn = document.getElementById('tabMode2Btn');
+            const m1Cont = document.getElementById('mode1Container');
+            const m2Cont = document.getElementById('mode2Container');
+
+            if (mode === 'mode1') {
+                m1Btn.className = "flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition bg-white text-indigo-600 shadow-sm";
+                m2Btn.className = "flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900";
+                m1Cont.classList.remove('hidden');
+                m2Cont.classList.add('hidden');
+            } else {
+                m2Btn.className = "flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition bg-white text-indigo-600 shadow-sm";
+                m1Btn.className = "flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900";
+                m2Cont.classList.remove('hidden');
+                m1Cont.classList.add('hidden');
+            }
+        }
+
+        // MODE 1 FUNCTIONS
+        function updateM1Header() {
+            state.mode1.title = document.getElementById('m1Title').value;
+            state.mode1.date = document.getElementById('m1Date').value;
+            renderM1Header();
+            saveToLocalStorage();
+        }
+
+        function renderM1Header() {
+            document.getElementById('m1DisplayTitle').textContent = state.mode1.title || "Fiche d'attribution des points";
+            const d = new Date(state.mode1.date);
+            document.getElementById('m1DisplayDate').textContent = !isNaN(d) ? d.toLocaleDateString('fr-FR') : state.mode1.date;
+            document.getElementById('m1CountText').textContent = `${state.mode1.entries.length} enfant(s) inscrit(s)`;
+        }
+
+        function addM1Entry(e) {
+            e.preventDefault();
+            const nom = document.getElementById('m1Nom').value.trim();
+            const prenom = document.getElementById('m1Prenom').value.trim();
+            const points = parseInt(document.getElementById('m1Points').value) || 0;
+            const motif = document.getElementById('m1Motif').value.trim();
+
+            if (!nom || !prenom) return;
+
+            state.mode1.entries.push({
+                id: Date.now().toString(),
+                nom,
+                prenom,
+                points,
+                motif
+            });
+
+            document.getElementById('m1Nom').value = '';
+            document.getElementById('m1Prenom').value = '';
+            document.getElementById('m1Motif').value = '';
+
+            saveToLocalStorage();
+            renderM1();
+            showToast('Enfant ajouté avec succès !');
+        }
+
+        function deleteM1Entry(id) {
+            state.mode1.entries = state.mode1.entries.filter(e => e.id !== id);
+            saveToLocalStorage();
+            renderM1();
+        }
+
+        function renderM1() {
+            renderM1Header();
+            const tbody = document.getElementById('m1TableBody');
+            const emptyState = document.getElementById('m1EmptyState');
+
+            if (state.mode1.entries.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = state.mode1.entries.map((item, idx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-4 text-slate-500 font-medium">${idx + 1}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(item.nom)}</td>
+                    <td class="py-3 px-4 text-slate-700">${escapeHtml(item.prenom)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-800">
+                            +${item.points} pts
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-600 text-xs sm:text-sm">${escapeHtml(item.motif || '-')}</td>
+                    <td class="py-3 px-4 text-center print-only border-l border-slate-200">
+                        <div class="h-8 border-b border-dashed border-slate-300 w-24 mx-auto"></div>
+                    </td>
+                    <td class="py-3 px-4 text-right no-print">
+                        <button onclick="deleteM1Entry('${item.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        // MODE 2 FUNCTIONS
+        function updateM2Header() {
+            state.mode2.title = document.getElementById('m2Title').value;
+            state.mode2.period = document.getElementById('m2Period').value;
+            document.getElementById('m2DisplayTitle').textContent = state.mode2.title || "Bilan des Points";
+            document.getElementById('m2DisplayPeriod').textContent = `Période : ${state.mode2.period}`;
+            saveToLocalStorage();
+        }
+
+        function addM2Column() {
+            const colNum = state.mode2.columns.length + 1;
+            const newColId = 'col_' + Date.now();
+            const colLabel = prompt('Nom de la période/colonne :', `Semaine ${colNum}`);
+            
+            if (!colLabel) return;
+
+            state.mode2.columns.push({ id: newColId, label: colLabel });
+            saveToLocalStorage();
+            renderM2();
+            showToast('Colonne ajoutée !');
+        }
+
+        function deleteM2Column(colId) {
+            if (confirm('Voulez-vous supprimer cette colonne ?')) {
+                state.mode2.columns = state.mode2.columns.filter(c => c.id !== colId);
+                saveToLocalStorage();
+                renderM2();
+            }
+        }
+
+        function openAddChildModal() {
+            const modal = document.getElementById('addChildModal');
+            const box = document.getElementById('addChildModalBox');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                box.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeAddChildModal() {
+            const modal = document.getElementById('addChildModal');
+            const box = document.getElementById('addChildModalBox');
+            modal.classList.add('opacity-0');
+            box.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        function saveNewChildM2(e) {
+            e.preventDefault();
+            const nom = document.getElementById('m2NewNom').value.trim();
+            const prenom = document.getElementById('m2NewPrenom').value.trim();
+            const obj = document.getElementById('m2NewObj').value.trim();
+
+            if (!nom || !prenom) return;
+
+            state.mode2.children.push({
+                id: 'c_' + Date.now(),
+                nom,
+                prenom,
+                points: {},
+                obj
+            });
+
+            document.getElementById('m2NewNom').value = '';
+            document.getElementById('m2NewPrenom').value = '';
+            document.getElementById('m2NewObj').value = '';
+
+            closeAddChildModal();
+            saveToLocalStorage();
+            renderM2();
+            showToast('Enfant ajouté au suivi !');
+        }
+
+        function updateM2Points(childId, colId, value) {
+            const child = state.mode2.children.find(c => c.id === childId);
+            if (child) {
+                child.points[colId] = parseInt(value) || 0;
+                saveToLocalStorage();
+                renderM2();
+            }
+        }
+
+        function deleteM2Child(childId) {
+            state.mode2.children = state.mode2.children.filter(c => c.id !== childId);
+            saveToLocalStorage();
+            renderM2();
+        }
+
+        function renderM2() {
+            updateM2Header();
+            const headerRow = document.getElementById('m2HeaderRow');
+            const tbody = document.getElementById('m2TableBody');
+            const emptyState = document.getElementById('m2EmptyState');
+
+            if (state.mode2.children.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Headers
+            let headerHTML = `
+                <th class="py-3 px-4 font-bold">Nom & Prénom</th>
+            `;
+
+            state.mode2.columns.forEach(col => {
+                headerHTML += `
+                    <th class="py-3 px-3 font-bold text-center">
+                        <div class="flex items-center justify-center space-x-1">
+                            <span>${escapeHtml(col.label)}</span>
+                            <button onclick="deleteM2Column('${col.id}')" class="no-print text-slate-400 hover:text-red-500 ml-1">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </th>
+                `;
+            });
+
+            headerHTML += `
+                <th class="py-3 px-4 font-bold text-center bg-indigo-50 text-indigo-900 border-l border-indigo-100">Total Cumulé</th>
+                <th class="py-3 px-4 font-bold">Objectif / Notes</th>
+                <th class="py-3 px-4 font-bold text-right no-print">Actions</th>
+            `;
+
+            headerRow.innerHTML = headerHTML;
+
+            // Rows
+            tbody.innerHTML = state.mode2.children.map(child => {
+                let total = 0;
+                let colCells = state.mode2.columns.map(col => {
+                    const pts = child.points[col.id] || 0;
+                    total += pts;
+                    return `
+                        <td class="py-2 px-2 text-center">
+                            <input type="number" value="${pts}" onchange="updateM2Points('${child.id}', '${col.id}', this.value)" 
+                                class="no-print w-16 px-2 py-1 text-center text-sm border border-slate-200 rounded focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <span class="print-only font-semibold">${pts}</span>
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3 px-4">
+                            <div class="font-bold text-slate-900">${escapeHtml(child.nom)} ${escapeHtml(child.prenom)}</div>
+                        </td>
+                        ${colCells}
+                        <td class="py-3 px-4 text-center bg-indigo-50/50 border-l border-indigo-100 font-bold text-indigo-700 text-base">
+                            ${total} pts
+                        </td>
+                        <td class="py-3 px-4 text-xs text-slate-600">
+                            ${escapeHtml(child.obj || '-')}
+                        </td>
+                        <td class="py-3 px-4 text-right no-print">
+                            <button onclick="deleteM2Child('${child.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded transition">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function renderAll() {
+            renderM1();
+            renderM2();
+            renderHistory();
+            switchMode(state.currentMode);
+        }
+
+        // EXPORT & IMPORT JSON
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `pts_champions_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Fichier de sauvegarde téléchargé !');
+        }
+
+        function importJSON(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState && (importedState.mode1 || importedState.mode2)) {
+                        state = importedState;
+                        if (!state.history) state.history = [];
+                        saveToLocalStorage();
+                        renderAll();
+                        showToast('Données et historique restaurés !');
+                    } else {
+                        alert('Format de fichier JSON invalide.');
+                    }
+                } catch(err) {
+                    alert('Erreur lors de la lecture du fichier JSON.');
+                }
+            };
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
